@@ -1,5 +1,6 @@
 Require Import List.
 
+
 Module Type DecidableEqLe.
 
   Parameter A : Type.
@@ -86,10 +87,8 @@ Module InsertionSort (M : DecidableEqLe).
     - intro b.
       simpl.
       destruct (leb b a) ; simpl.
-    -- destruct (a =? b) ; rewrite eqb_refl ; reflexivity.
-    -- destruct (a =? b).
-    --- now rewrite IHl.
-    --- now rewrite IHl.
+      + destruct (a =? b) ; rewrite eqb_refl ; reflexivity.
+      + destruct (a =? b) ; now rewrite IHl.
   Qed.
 
   Theorem insert_neq_occ : forall l a b, a <> b -> occ (insert l b) a = occ l a.
@@ -103,10 +102,10 @@ Module InsertionSort (M : DecidableEqLe).
     - apply neqb_neq in H.
       rewrite eqb_sym in H.
       destruct (a0 =? a) as []eqn:? ; destruct (leb b a0) ; simpl ; rewrite Heqb0.
-    -- now rewrite H.
-    -- now rewrite IHl.
-    -- now rewrite H.
-    -- assumption.
+      + now rewrite H.
+      + now rewrite IHl.
+      + now rewrite H.
+      + assumption.
   Qed.
 
   Lemma insert_length : forall l a, length (insert l a) = S (length l).
@@ -117,36 +116,32 @@ Module InsertionSort (M : DecidableEqLe).
     - intro a0.
       simpl.
       destruct (a0 <=? a).
-    -- easy.
-    -- simpl.
-       now rewrite IHl.
+      + easy.
+      + simpl.
+        now rewrite IHl.
   Qed.
 
 
   Theorem sort_correct : forall l, is_perm (sort l) l.
   Proof.
     induction l.
-    simpl.
-    unfold is_perm.
-    intro n.
-    simpl.
-    reflexivity.
-    unfold is_perm.
-    intro b.
-    simpl.
-    destruct (a =? b) as []eqn:?.
-    destruct (eqb_eq a b) as [Hl Hr].
-    apply Hl in Heqb0.
-    rewrite Heqb0.
-    rewrite insert_occ.
-    now rewrite IHl.
+    - simpl.
+      unfold is_perm.
+      intro n.
+      simpl.
+      reflexivity.
 
-    destruct (neqb_neq a b) as [Hl Hr].
-    apply Hl in Heqb0.
-    rewrite insert_neq_occ.
-    apply IHl.
-    intro.
-    now apply eq_sym in H.
+    - unfold is_perm.
+      intro b.
+      simpl.
+      destruct (a =? b) as []eqn:?.
+      + apply (eqb_eq) in Heqb0.
+        now rewrite Heqb0, insert_occ, IHl.
+      + apply (neqb_neq a b) in Heqb0.
+        rewrite insert_neq_occ.
+        apply IHl.
+        intro.
+        now apply eq_sym in H.
   Qed.
 
 
@@ -161,182 +156,146 @@ Module InsertionSort (M : DecidableEqLe).
     /\ ((m <= p)%nat -> nth (S p) (insert l n) default = nth p l default)).
   Proof.
     induction l.
-    intro n.
-    now exists 0.
 
-    intro n.
+    - intro n.
+      now exists 0.
 
-    destruct (n <=? a) as []eqn:?.
-    exists 0.
-    split.
-    simpl.
-    now rewrite Heqb.
-    split.
-    now rewrite (PeanoNat.Nat.le_0_l (length (a::l))).
-    split.
-    intros.
-    simpl.
-    rewrite Heqb.
-    simpl.
-    destruct (leb_le n a) as [Hl _].
-    now apply Hl in Heqb.
-    intro p.
-    split.
-    easy.
-    simpl.
-    rewrite Heqb.
-    intros.
-    simpl.
-    reflexivity.
-
-    destruct (IHl n) as [m' IHl'].
-    exists (S m').
-    split.
-    simpl.
-    rewrite Heqb.
-    simpl.
-    easy.
-    split.
-    destruct IHl' as [_ [H _]].
-    simpl.
-    destruct (PeanoNat.Nat.succ_le_mono m' (length l)) as [Hl _].
-    now apply Hl in H.
-    split.
-    simpl.
-    intros.
-    rewrite Heqb.
-    simpl.
-    destruct IHl' as [_ [_ [H' _]]].
-    destruct (PeanoNat.Nat.succ_lt_mono m' (length l)) as [_ Hr].
-    apply Hr in H.
-    now apply H' in H.
-    intro p.
-    simpl.
-    split.
-    intros.
-    split.
-    rewrite Heqb.
-    simpl.
-    destruct p.
-    reflexivity.
-    destruct IHl' as [_ [_ [H']]].
-    pose proof (H1 p) as H1'.
-    destruct (PeanoNat.Nat.succ_lt_mono p (length l)) as [_ Hr].
-    apply Hr in H.
-    apply H1' in H.
-    destruct H as [H _].
-    destruct (PeanoNat.Nat.succ_lt_mono p m') as [_ Hr'].
-    apply Hr' in H0.
-    apply H in H0.
-    now destruct H0 as [H0l _].
-    rewrite Heqb.
-    simpl.
-    destruct p.
-    destruct (le_total a n) as [Hle|Hle].
-    easy.
-    apply leb_le in Hle.
-    now rewrite Hle in Heqb.
-    destruct IHl' as [_ [_ [_ H']]].
-    destruct (PeanoNat.Nat.succ_lt_mono p (length l)) as [_ Hr].
-    apply Hr in H.
-    apply (H' p) in H.
-    destruct H as [H _].
-    destruct (PeanoNat.Nat.succ_lt_mono p m') as [_ Hr'].
-    apply Hr' in H0.
-    apply H in H0.
-    now destruct H0 as [_ H0].
-
-    intros.
-    rewrite Heqb.
-    simpl.
-    destruct p.
-    easy.
-    destruct (PeanoNat.Nat.succ_lt_mono p (length l)) as [_ Hr].
-    destruct (PeanoNat.Nat.succ_le_mono m' p) as [_ Hr'].
-    apply Hr in H.
-    apply Hr' in H0.
-    destruct (IHl') as [_ [_ [_ H1']]].
-    pose proof (H1' p).
-    intros.
-    apply H1 in H.
-    destruct H as [_ H].
-    now apply H in H0.
+    - intro n.
+      destruct (n <=? a) as []eqn:?.
+      + exists 0.
+        repeat split.
+        * simpl.
+          now rewrite Heqb.
+        * now rewrite (PeanoNat.Nat.le_0_l (length (a::l))).
+        * intros.
+          simpl.
+          rewrite Heqb.
+          simpl.
+          now apply leb_le in Heqb.
+        * easy.
+        * easy.
+        * intro.
+          simpl.
+          rewrite Heqb.
+          reflexivity.
+      + destruct (IHl n) as [m' IHl'].
+        exists (S m').
+        repeat split.
+        * simpl.
+          rewrite Heqb.
+          easy.
+        * destruct IHl' as [_ [H _]].
+          simpl.
+          now apply PeanoNat.Nat.succ_le_mono in H.
+        * intro.
+          simpl.
+          rewrite Heqb.
+          simpl.
+          destruct IHl' as [_ [_ [H' _]]].
+          now apply PeanoNat.Nat.succ_lt_mono, H' in H.
+        * simpl.
+          rewrite Heqb.
+          simpl.
+          destruct p.
+          reflexivity.
+          destruct IHl' as [_ [_ [H']]].
+          pose proof (H1 p) as H1'.
+          apply PeanoNat.Nat.succ_lt_mono, H1' in H.
+          destruct H as [H _].
+          apply PeanoNat.Nat.succ_lt_mono, H in H0.
+          now destruct H0 as [H0 _].
+        * simpl.
+          rewrite Heqb.
+          simpl.
+          destruct p.
+          destruct (le_total a n) as [Hle|Hle].
+          easy.
+          apply leb_le in Hle.
+          now rewrite Hle in Heqb.
+          destruct IHl' as [_ [_ [_ H']]].
+          apply PeanoNat.Nat.succ_lt_mono, (H' p) in H.
+          destruct H as [H _].
+          apply PeanoNat.Nat.succ_lt_mono, H in H0.
+          now destruct H0 as [_ H0].
+        * intro.
+          simpl.
+          rewrite Heqb.
+          simpl.
+          destruct p.
+          easy.
+          apply PeanoNat.Nat.succ_lt_mono in H.
+          apply PeanoNat.Nat.succ_le_mono in H0.
+          destruct (IHl') as [_ [_ [_ H1]]].
+          pose proof (H1 p) as H1.
+          apply H1 in H.
+          destruct H as [_ H].
+          now apply H in H0.
   Qed.
 
 
   Theorem sort_correct2 : forall l, is_sorted (sort l).
   Proof.
     induction l.
-    simpl.
-    unfold is_sorted.
-    unfold length.
-    now intros.
 
-    simpl.
-    unfold is_sorted.
-    intros.
-    destruct (insert_le (sort l) a) as [m Hinsert].
-    destruct Hinsert as [Ha_in [Hm_in [Hm_next Horder]]].
-    rewrite (insert_length (sort l) a) in H.
-    destruct (PeanoNat.Nat.succ_lt_mono n (length (sort l))) as [_ Hr].
-    apply Hr in H as H'.
-    apply Hr in H.
-    clear Hr.
-    destruct (PeanoNat.Nat.lt_trichotomy n m) as [H0|[H0|H0]].
+    - simpl.
+      unfold is_sorted.
+      now intros.
 
-    apply (Horder n) in H.
-    destruct H as [H _].
-    apply H in H0 as H1.
-    destruct H1 as [H1 _].
-    apply (PeanoNat.Nat.le_succ_l n m) in H0.
-    apply (PeanoNat.Nat.le_lteq (S n) m) in H0.
-    destruct H0 as [H0|H0].
-    apply (PeanoNat.Nat.lt_le_trans (S n) m (length (sort l))) in H0 as H2.
-    apply (Horder (S n)) in H2 as H3.
-    destruct H3 as [H3 _].
-    apply H3 in H0 as H4.
-    clear H3.
-    destruct H4 as [H4 _].
-    rewrite H4.
-    rewrite H1.
-    now apply IHl.
-    assumption.
-    rewrite H0.
-    rewrite Ha_in.
-    assert (n < m).
-    destruct (PeanoNat.Nat.le_succ_l n m).
-    apply H2.
-    rewrite H0.
-    apply Peano.le_n.
-    now apply (Horder n) in H2.
-
-    rewrite H0 in H, H'.
-    apply Hm_next in H.
-    rewrite H0.
-    now rewrite Ha_in.
-
-    apply (Horder n) in H.
-    destruct H as [_ H].
-    apply (PeanoNat.Nat.lt_le_incl m n) in H0 as H1.
-    apply H in H1.
-    apply (PeanoNat.Nat.lt_le_pred m n) in H0 as H2.
-    pose proof (PeanoNat.Nat.le_pred_l n) as H3.
-    apply (PeanoNat.Nat.le_lt_trans (PeanoNat.Nat.pred n) n (length (sort l))) in H3.
-    apply (Horder (PeanoNat.Nat.pred n)) in H3.
-    destruct H3 as [_ H3].
-    apply H3 in H2.
-    clear H3.
-    apply (PeanoNat.Nat.le_lt_trans 0 m n) in H0.
-    apply (PeanoNat.Nat.lt_neq 0 n) in H0.
-    apply (PeanoNat.Nat.neq_sym 0 n) in H0.
-    apply (PeanoNat.Nat.succ_pred n) in H0 as H3.
-    rewrite H3 in H2.
-    rewrite H1, H2.
-    rewrite <- H3 at 2.
-    apply IHl.
-    now rewrite H3.
-    now pose proof (PeanoNat.Nat.le_0_l m) as H3.
-    assumption.
+    - simpl.
+      unfold is_sorted.
+      intros.
+      destruct (insert_le (sort l) a) as [m Hinsert].
+      destruct Hinsert as [Ha_in [Hm_in [Hm_next Horder]]].
+      rewrite (insert_length (sort l) a) in H.
+      apply PeanoNat.Nat.succ_lt_mono in H as H'.
+      apply PeanoNat.Nat.succ_lt_mono in H.
+      destruct (PeanoNat.Nat.lt_trichotomy n m) as [H0|[H0|H0]].
+      + apply (Horder n) in H.
+        destruct H as [H _].
+        apply H in H0 as H1.
+        destruct H1 as [H1 _].
+        apply PeanoNat.Nat.le_succ_l in H0.
+        apply PeanoNat.Nat.le_lteq in H0.
+        destruct H0 as [H0|H0].
+        * apply (PeanoNat.Nat.lt_le_trans (S n) m (length (sort l))) in H0 as H2.
+          apply (Horder (S n)) in H2 as H3.
+          destruct H3 as [H3 _].
+          apply H3 in H0 as H4.
+          clear H3.
+          destruct H4 as [H4 _].
+          rewrite H4, H1.
+          now apply IHl.
+          assumption.
+        * rewrite H0, Ha_in.
+          assert (n < m).
+          unfold lt.
+          rewrite H0.
+          apply Peano.le_n.
+          now apply (Horder n) in H2.
+      + rewrite H0 in H, H'.
+        apply Hm_next in H.
+        now rewrite H0, Ha_in.
+      + apply (Horder n) in H.
+        destruct H as [_ H].
+        apply PeanoNat.Nat.lt_le_incl in H0 as H1.
+        apply H in H1.
+        apply PeanoNat.Nat.lt_le_pred in H0 as H2.
+        pose proof (PeanoNat.Nat.le_pred_l n) as H3.
+        apply (PeanoNat.Nat.le_lt_trans (PeanoNat.Nat.pred n) n (length (sort l))) in H3.
+        apply (Horder (PeanoNat.Nat.pred n)) in H3.
+        destruct H3 as [_ H3].
+        apply H3 in H2.
+        clear H3.
+        apply (PeanoNat.Nat.le_lt_trans 0 m n) in H0.
+        apply PeanoNat.Nat.lt_neq, PeanoNat.Nat.neq_sym in H0.
+        apply (PeanoNat.Nat.succ_pred n) in H0 as H3.
+        rewrite H3 in H2.
+        rewrite H1, H2.
+        rewrite <- H3 at 2.
+        apply IHl.
+        now rewrite H3.
+        now pose proof (PeanoNat.Nat.le_0_l m) as H3.
+        assumption.
   Qed.
 
 End InsertionSort.
@@ -354,6 +313,5 @@ Module NatDecidableEqLe <: DecidableEqLe.
   Definition default := 0.
 
 End NatDecidableEqLe.
-
 
 Module NatInsertionSort := InsertionSort NatDecidableEqLe.
