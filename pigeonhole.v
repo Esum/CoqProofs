@@ -1,300 +1,308 @@
 Require Import List.
 
-Definition repeats l := exists n m, n < m /\ m < length l /\ nth n l 0 = nth m l 0.
+Inductive in_list (X : Type) : X -> list X -> Prop :=
+  | in_cons_l : forall x l, in_list X x (x::l)
+  | in_cons_r : forall x y l, in_list X x l -> in_list X x (y::l).
+Implicit Arguments in_list [X].
 
-Definition in_list x l := exists n, n < length l /\ x = nth n l 0.
-
-Lemma in_list_decidable : forall x l, in_list x l \/ ~(in_list x l).
-Proof. 
-  intro x.
-  induction l.
-  right.
-  intro.
-  destruct H as [n H].
-  now destruct n ; simpl in H ; pose proof (PeanoNat.Nat.neq_succ_diag_r x).
-  
-  destruct IHl as [IHl|IHl].
-  left.
-  destruct IHl as [m [H H']].
-  exists (S m).
-  simpl.
-  split.
-  now apply (PeanoNat.Nat.succ_lt_mono m (length l)).
-  easy.
-  destruct (PeanoNat.Nat.eq_decidable x a) as [H|H].
-  left.
-  exists 0.
-  simpl.
-  split.
-  now apply (PeanoNat.Nat.lt_0_succ (length l)).
-  assumption.
-  right.
-  intro.
-  destruct H0 as [m [H0 H0']].
-  simpl in H0.
-  simpl in H0'.
-  destruct m.
-  easy.
-  apply IHl.
-  exists m.
-  split.
-  now apply (PeanoNat.Nat.succ_lt_mono m (length l)).
-  assumption.
-Qed.
-
-Lemma repeats_decidable : forall l, repeats l \/ ~ (repeats l).
+Lemma in_list_nth (X : Type) (default : X) : forall x l, in_list x l <-> exists n, n < length l /\ x = nth n l default.
 Proof.
-  induction l.
-  right.
-  intro.
-  destruct H as [_ [m [_ [H _]]]].
-  easy.
-
-  destruct IHl as [IHl|IHl].
-  left.
-  destruct IHl as [n [m [H1[H2 H3]]]].
-  exists (S n), (S m).
-  simpl.
+  intros.
   split.
-  now apply (PeanoNat.Nat.succ_lt_mono n m).
-  split.
-  now apply (PeanoNat.Nat.succ_lt_mono m (length l)).
-  assumption.
-
-  destruct (in_list_decidable a l) as [H|H].
-  left.
-  destruct H as [m [H H']].
-  exists 0, (S m).
-  simpl.
-  split.
-  now apply (PeanoNat.Nat.lt_0_succ m).
-  split.
-  now apply (PeanoNat.Nat.succ_lt_mono m (length l)).
-  assumption.
-
-  right.
-  intro.
-  destruct H0 as [n [m [H1[H2 H3]]]].
-  destruct n.
-  simpl in H2.
-  simpl in H3.
-  destruct m.
-  easy.
-  apply H.
-  exists m.
-  now applyz (PeanoNat.Nat.succ_lt_mono m (length l)) in H2.
-  simpl in H3.
-  destruct m.
-  easy.
-  apply IHl.
-  exists n, m.
-  simpl in H2.
-  apply (PeanoNat.Nat.succ_lt_mono n m) in H1.
-  now apply (PeanoNat.Nat.succ_lt_mono m (length l)) in H2.
+  - induction l.
+    + intro.
+      inversion_clear H.
+    + intro.
+      inversion H ; subst.
+      * exists 0.
+        split.
+        apply PeanoNat.Nat.lt_0_succ.
+        reflexivity.
+      * apply IHl in H2.
+        destruct H2 as [n [H2 H3]].
+        exists (S n).
+        split.
+        now apply (PeanoNat.Nat.succ_lt_mono n _).
+        assumption.
+  - induction l.
+    + intro.
+      now destruct H as [n [H _]].
+    + intro.
+      destruct H as [n [H H0]].
+      destruct n.
+      * simpl in H0.
+        subst.
+        apply in_cons_l.
+      * apply in_cons_r.
+        apply IHl.
+        exists n.
+        split.
+        now apply PeanoNat.Nat.succ_lt_mono.
+        assumption.
 Qed.
+Implicit Arguments in_list_nth [X].
 
-Fixpoint filter_neq x l :=
-  match l with
-  | nil => nil
-  | a::t => if Nat.eqb a x
-  	then filter_neq x t
-  	else a::(filter_neq x t)
+Inductive repeats (X : Type) : list X -> Prop :=
+  | repeats_cons_l : forall x l, in_list x l -> repeats X (x::l)
+  | repeats_cons_r : forall x l, repeats X l -> repeats X (x::l).
+Implicit Arguments repeats [X].
+
+Fixpoint remove_nth (X : Type) n (l : list X) :=
+  match n, l with
+  | 0, a::l => l
+  | S n, a::l => a::(remove_nth X n l)
+  | _, nil => nil
   end.
+Implicit Arguments remove_nth [X].
 
-Lemma eqb_n_m_eq : forall n m, Nat.eqb n m = true <-> n = m.
-Proof. 
-  induction n.
-  now destruct m.
-  
-  destruct m.
-  easy.
-  simpl.
-
-  split.
-  intro H.
-  destruct (IHn m) as [IHnl _].
-
-  now rewrite IHnl.
-
-  destruct (IHn m) as [_ IHnr].
-  intro H.
-  destruct (PeanoNat.Nat.succ_inj_wd n m) as [H' _].
-  apply IHnr.
-  apply H'.
-  assumption.
-Qed.
-
-Lemma eqb_n_m_neq : forall n m, Nat.eqb n m = false <-> n <> m.
+Lemma remove_nth_length (X : Type) : forall n (l : list X), n < length l -> length l = S (length (remove_nth n l)).
 Proof.
-  induction n.
-  now destruct m.
-
-  destruct m.
-  easy.
-  simpl.
-  destruct (IHn m) as [IHnl IHnr].
-  split ; intro H.
-  
-  apply IHnl in H.
-  now apply (PeanoNat.Nat.succ_inj_wd_neg n m) in H.
-  
-  apply (PeanoNat.Nat.succ_inj_wd_neg n m) in H.
-  now apply IHnr in H.
-Qed.
-
-Lemma filter_le : forall a l, length (filter_neq a l) <= length l.
-Proof.
-  intro a.
+  intros n l.
+  revert n.
   induction l.
-  easy.
-
-  simpl.
-  destruct (Nat.eqb a0 a).
-  pose proof (PeanoNat.Nat.le_succ_diag_r (length l)).
-  now apply (PeanoNat.Nat.le_trans (length (filter_neq a l)) (length l) (S (length l))) in IHl.
-  simpl.
-  now apply (PeanoNat.Nat.succ_le_mono (length (filter_neq a l)) (length l)).
+  - easy.
+  - intros.
+    simpl.
+    apply PeanoNat.Nat.succ_inj_wd.
+    + destruct n.
+       * easy.
+       * now apply IHl, PeanoNat.Nat.succ_lt_mono.
 Qed.
+Implicit Arguments remove_nth_length [X].
 
-Lemma filter_in : forall a l, in_list a l -> length (filter_neq a l) < length l.
+Lemma remove_nth_length_le (X : Type) : forall n (l : list X), length l <= S (length (remove_nth n l)).
 Proof.
-  intro a.
-  induction l ; intro.
-  destruct H as [n [H _]].
-  simpl in H.
-  easy.
-  simpl.
-
-  destruct (Nat.eqb a0 a) as []eqn:?.
-  pose proof (filter_le a l).
-  now apply (PeanoNat.Nat.lt_succ_r (length (filter_neq a l)) (length l)) in H0.
-  apply (eqb_n_m_neq a0 a) in Heqb as Heqb'.
-  simpl.
-  assert (in_list a l).
-  destruct H as [n [H H']].
-  destruct n.
-  simpl in H'.
-  now pose proof (eq_sym H').
-  simpl in H.
-  simpl in H'.
-  exists n.
-  now apply (PeanoNat.Nat.succ_lt_mono n (length l)) in H.
-  apply IHl in H0.
-  now apply (PeanoNat.Nat.succ_lt_mono (length (filter_neq a l)) (length l)).
+  intros n l.
+  revert n.
+  induction l as [|x l] ; intros.
+  - apply le_0_n.
+  - destruct n.
+    + easy.
+    + apply le_n_S, IHl.
 Qed.
+Implicit Arguments remove_nth_length_le [X].
 
-Lemma filter_invar : forall x a, x <> a -> (forall l, in_list x l -> in_list x (filter_neq a l)).
+Lemma remove_nth_left (X : Type) (default : X) : forall n l m, m < n -> nth m (remove_nth n l) default = nth m l default.
 Proof.
-  intros x a.
-  induction l ; intros.
-  easy.
+  intros n l.
+  revert n.
+  induction l as [|x l] ; intros.
+  - now destruct n.
+  - induction n.
+    + easy.
+    + apply PeanoNat.Nat.succ_le_mono, PeanoNat.Nat.le_lteq in H.
+      destruct H.
+      * rewrite <- IHn ; try assumption.
+        destruct m.
+        -- now destruct n.
+        -- simpl.
+           destruct n.
+           ++ easy.
+           ++ simpl remove_nth at 2.
+              simpl nth at 2.
+              simpl in IHn.
+              rewrite IHn ; try assumption.
+              now apply IHl, PeanoNat.Nat.lt_le_incl.
+      * subst.
+        -- destruct n.
+           ++ reflexivity.
+           ++ assert (n < S n) by constructor.
+              now apply IHl in H.
+Qed.
+Implicit Arguments remove_nth_left [X].
 
-  simpl.
-  destruct (Nat.eqb a0 a) as []eqn:?.
-  apply (eqb_n_m_eq a0 a) in Heqb.
-  rewrite Heqb in H0.
-  destruct H0 as [n [H0 H0']].
-  destruct n.
-  now simpl in H0'.
-  simpl in H0.
-  simpl in H0'.
-  apply IHl.
-  exists n.
-  now apply (PeanoNat.Nat.succ_lt_mono n (length l)) in H0.
+Lemma remove_nth_right (X : Type) (default : X) : forall n l m, n <= m -> nth m (remove_nth n l) default = nth (S m) l default.
+Proof.
+  intros n l.
+  revert n.
+  induction l as [|x l] ; intros.
+  - now destruct n ; destruct m.
+  - simpl.
+    destruct m.
+    + apply Le.le_n_0_eq in H.
+      now subst.
+    + destruct n.
+      * reflexivity.
+      * now apply IHl, PeanoNat.Nat.succ_le_mono.
+Qed.
+Implicit Arguments remove_nth_right [X].
 
-  destruct (PeanoNat.Nat.eq_decidable x a0) as [H'|H'].
-  exists 0.
-  simpl.
-  now pose proof (PeanoNat.Nat.lt_0_succ (length (filter_neq a l))).
-  assert (in_list x l).
-  destruct H0 as [n [H0 H0']].
-  destruct n.
-  now simpl in H0'.
-  exists n.
-  now apply (PeanoNat.Nat.succ_lt_mono n (length l)) in H0.
-  apply IHl in H1.
-  destruct H1 as [n [H1 H1']].
-  exists (S n).
-  simpl.
-  now apply (PeanoNat.Nat.succ_lt_mono n (length (filter_neq a l))) in H1.
+Definition in_list_decidable (X : Type) := forall (x : X) l, in_list x l \/ ~ in_list x l.
+
+Theorem pigeonhole_classic (X : Type) : in_list_decidable X -> forall (l1 l2 : list X), length l2 < length l1 -> (forall x, in_list x l1 -> in_list x l2) -> repeats l1.
+Proof.
+  intro H1.
+  induction l1.
+  - easy.
+  - intros.
+    pose proof (H1 a l1) as H1.
+    destruct H1.
+    + now constructor.
+    + apply repeats_cons_r.
+      assert (in_list a l2) by (apply H0 ; constructor).
+      apply (in_list_nth a) in H2.
+      destruct H2 as [n H2].
+      apply (IHl1 (remove_nth n l2)).
+      * unfold lt.
+        destruct H2.
+        apply remove_nth_length in H2.
+        rewrite <- H2.
+        now apply Lt.lt_n_Sm_le.
+      * intros.
+        assert (in_list x (a::l1)) by (now apply in_cons_r).
+        apply H0, (in_list_nth a) in H4.
+        destruct H4 as [m H4].
+        destruct (PeanoNat.Nat.lt_trichotomy m n) as [?|[?|?]].
+        -- apply (in_list_nth a).
+           exists m.
+           split.
+           ++ destruct H2.
+              apply (PeanoNat.Nat.le_lt_trans (S m) _ (length l2)) in H5 ; try assumption.
+              pose proof (remove_nth_length_le n l2).
+              now apply PeanoNat.Nat.succ_lt_mono, PeanoNat.Nat.lt_le_trans with (length l2).
+           ++ destruct H4.
+              subst.
+              now apply eq_sym, remove_nth_left.
+        -- subst.
+           elim H1.
+           destruct H2.
+           destruct H4.
+           rewrite H5.
+           now rewrite <- H6.
+        -- destruct m.
+           ++ easy.
+           ++ apply (in_list_nth a).
+              exists m.
+              split ; destruct H4.
+              ** pose proof (remove_nth_length_le n l2).
+                 apply (PeanoNat.Nat.lt_le_trans _ _ (S (length (remove_nth n l2)))) in H4 ; try assumption.
+                 now apply PeanoNat.Nat.succ_lt_mono.
+              ** subst.
+                 now apply eq_sym, remove_nth_right, PeanoNat.Nat.succ_le_mono.
 Qed.
 
-Theorem pigeonhole : forall l1 l2, length l2 < length l1 -> (forall x, in_list x l1 -> in_list x l2) -> repeats l1.
+Lemma pigeonhole_aux (X : Type) (default : X) : forall (l1 l2 : list X), 
+  (forall x, in_list x l1 -> in_list x l2) ->
+  (exists l3 : list nat, length l3 = length l1 /\ (forall n, n < length l3 -> nth n l3 0 < length l2) /\ (forall n, n < length l3 -> nth (nth n l3 0) l2 default = nth n l1 default) /\ (repeats l3 -> repeats l1)).
 Proof.
   induction l1.
-  induction l2.
-  easy.
-  easy.
-  intros l2 H1 H2.
-  simpl in H1.
-  apply (PeanoNat.Nat.lt_succ_r (length l2) (length l1)) in H1.
-  apply (PeanoNat.Nat.lt_eq_cases (length l2) (length l1)) in H1.
-  destruct H1 as [H1|H1].
-  apply IHl1 in H1.
-  destruct H1 as [n [m [H1 [H1' H1'']]]].
-  exists (S n), (S m).
-  simpl.
-  apply (PeanoNat.Nat.succ_lt_mono n m) in H1.
-  now apply (PeanoNat.Nat.succ_lt_mono m (length l1)) in H1'.
-  
-  intro x.
-  pose proof (H2 x) as H2.
-  intro.
-  assert (in_list x (a::l1)).
-  destruct H as [m [H H']].
-  exists (S m).
-  simpl.
-  now apply (PeanoNat.Nat.succ_lt_mono m (length l1)) in H.
-  now apply H2 in H0.
-  destruct (in_list_decidable a l1) as [H|H].
-  destruct H as [m [H H']].
-  exists 0, (S m).
-  simpl.
-  split.
-  now apply (PeanoNat.Nat.lt_0_succ m).
-  split.
-  now apply (PeanoNat.Nat.succ_lt_mono m (length l1)).
-  assumption.
+  - intros.
+    now exists nil.
+  - intros.
+    destruct (IHl1 l2) as [l3 ?].
+    + intros.
+      apply H.
+      now constructor.
+    + assert (in_list a (a::l1)) by constructor.
+      apply H, (in_list_nth default) in H1.
+      destruct H1 as [n []].
+      exists (n::l3).
+      destruct H0 as [?[?[]]].
+      assert ((forall n0 : nat, n0 < length (n :: l3) -> nth (nth n0 (n :: l3) 0) l2 default = nth n0 (a :: l1) default)).
+        induction n0 ; intro.
+        easy.
+        now apply H4, PeanoNat.Nat.succ_lt_mono.
+      repeat split.
+      * simpl.
+        now rewrite H0.
+      * destruct n0 ; intro.
+        -- assumption.
+        -- now apply H3, PeanoNat.Nat.succ_lt_mono.
+      * assumption.
+      * intros.
+        inversion_clear H7.
+        -- apply repeats_cons_l, (in_list_nth default).
+           apply (in_list_nth 0) in H8.
+           destruct H8 as [m []].
+           pose proof (H6 (S m)).
+           apply PeanoNat.Nat.succ_lt_mono in H7 as ?.
+           apply H9 in H10.
+           simpl in H10.
+           exists m.
+           split.
+           ++ now rewrite <- H0.
+           ++ now rewrite <- H10, <- H8.
+        -- now apply repeats_cons_r, H5.
+Qed.
+Implicit Arguments pigeonhole_aux [X].
 
-  destruct (repeats_decidable l1) as [H'|H'].
-  destruct H' as [n [m [H1' [H2' H3']]]].
-  exists (S n), (S m).
-  simpl.
-  apply (PeanoNat.Nat.succ_lt_mono n m) in H1'.
-  now apply (PeanoNat.Nat.succ_lt_mono m (length l1)) in H2'.
-  
-  destruct (repeats_decidable (a::l1)) as [H0|H0].
-  easy.
-  assert (forall x, in_list x l1 -> in_list x l2).
-  intros.
-  destruct (PeanoNat.Nat.eq_decidable x a) as [Heq|Heq].
-  now rewrite Heq in H3.
-  assert (in_list x (a::l1)).
-  destruct H3 as [n [H3 H3']].
-  exists (S n).
-  simpl.
-  split.
-  now apply (PeanoNat.Nat.succ_lt_mono n (length l1)).
-  assumption.
-  now apply (H2 x).
-  assert (in_list a l2).
-  pose proof (H2 a) as H4.
-  assert (in_list a (a::l1)).
-  exists 0.
-  simpl.
-  split.
-  now apply (PeanoNat.Nat.lt_0_succ (length l1)).
-  reflexivity.
-  now apply H4 in H5.
-  apply (filter_in a l2) in H4.
-  rewrite H1 in H4.
-  apply (IHl1 (filter_neq a l2)) in H4.
-  easy.
+Fixpoint enumerate (X : Type) (l : list X) n :=
+  match l with
+  | nil => nil
+  | _::l => n::(enumerate X l (S n))
+  end.
+Implicit Arguments enumerate [X].
 
+Lemma enumerate_length (X : Type) : forall (l : list X) n, length (enumerate l n) = length l.
+Proof.
+  induction l ; intros.
+  - reflexivity.
+  - simpl.
+    cut (length (enumerate l (S n)) = length l).
+    intro.
+    now rewrite H.
+    apply IHl.
+Qed.
+
+Lemma enumerate_nth (X : Type) : forall n m (l : list X), n < length l -> nth n (enumerate l m) 0 = n + m.
+Proof.
+  intros n m l.
+  revert n m.
+  induction l.
+  - now intros.
+  - induction n ; intros.
+    + easy.
+    + simpl.
+      rewrite IHl.
+      easy.
+      now apply PeanoNat.Nat.succ_lt_mono.
+Qed.
+Implicit Arguments enumerate_nth [X].
+
+Lemma in_list_nat_decidable : in_list_decidable nat.
+Proof.
+  intro n.
+  induction l.
+  - now right.
+  - destruct (PeanoNat.Nat.eq_decidable n a).
+    + left.
+      subst.
+      apply in_cons_l.
+    + destruct IHl.
+      * left.
+        now constructor.
+      * right.
+        intro.
+        apply H0.
+        now inversion H1.
+Qed.
+
+Theorem pigeonhole (X : Type) : forall l1 l2 : list X,
+  length l2 < length l1 ->
+  (forall x, in_list x l1 -> in_list x l2) ->
+  repeats l1.
+Proof.
   intros.
-  destruct (PeanoNat.Nat.eq_decidable x a) as [Heq|Heq].
-  now rewrite Heq in H5.
-  apply (H3 x) in H5.
-  pose proof (filter_invar x a Heq).
-  now apply (H6 l2) in H5.
+  induction l1.
+  - easy.
+  - destruct (pigeonhole_aux a (a::l1) l2) as [l3 [?[]]].
+    + intros.
+      now apply H0.
+    + apply H3.
+      apply (pigeonhole_classic nat in_list_nat_decidable) with (enumerate l2 0).
+      * now rewrite enumerate_length, H1.
+      * intros.
+        apply (in_list_nth 0) in H4.
+        apply (in_list_nth 0).
+        destruct H4 as [n []].
+        exists x.
+        split.
+        -- rewrite H5, enumerate_length.
+           now apply H2.
+        -- induction x.
+           now destruct l2.
+           rewrite <- (PeanoNat.Nat.add_0_r (S x)) at 1.
+           apply eq_sym, enumerate_nth.
+           rewrite H5.
+           now apply H2.
 Qed.
